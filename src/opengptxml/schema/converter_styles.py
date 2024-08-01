@@ -1,7 +1,12 @@
 import typing as T
+import logging
+
 from dataclasses import dataclass, field
 
 from opengptxml.schema.style import OpenXMLStyle
+
+logger = logging.getLogger()
+
 
 @dataclass
 class ConverterStyles:
@@ -38,7 +43,7 @@ class ConverterStyles:
         html_tag: str
     ) -> None:
         if not hasattr(self, self.get_style_key(html_tag)):
-            raise ValueError(
+            logger.warning(
                 f"`{html_tag}` isn't supported in ConverterSettings"
                 f" please help us out and raise a PR to support this!"
             )

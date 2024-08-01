@@ -63,6 +63,7 @@ Australia played a significant role in World War II, both in the Pacific and Eur
 ### Social Changes
 - The role of women in the workforce expanded significantly, with many taking on jobs traditionally held by men.
     - The establishment of the **Australian Women's Army Service** (AWAS) and the **Women's Auxiliary Australian Air Force** (WAAAF) marked key developments.
+        - this is a third level bullet point
 
 ---
 

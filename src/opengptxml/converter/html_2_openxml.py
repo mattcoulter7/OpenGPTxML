@@ -20,8 +20,7 @@ def html_2_open_xml(
 ) -> str:
     soup = BeautifulSoup(html, "html.parser")
     return html_element_2_open_xml(
-        soup,
-        settings=settings,
+        soup, settings,
         nest_id=nest_id,
     )
 
@@ -39,22 +38,46 @@ def html_element_2_open_xml(
     if tag_hierarchy is None:
         tag_hierarchy = []
 
-    tag_hierarchy.append(element.name)
-    
     children = children_override \
         if children_override is not None else element
 
+    return html_children_2_open_xml(
+        children, settings,
+        tag_hierarchy=[*tag_hierarchy, element.name],  # pass a copy for each branch
+        nest_id=nest_id,
+        ilvl=ilvl,
+        num_id=num_id,
+    )
+
+
+def html_children_2_open_xml(
+    children: T.Iterable[T.Union[str, PageElement]],
+    settings: ConverterSettings,
+    *,
+    tag_hierarchy: T.Optional[T.List[str]] = None,
+    nest_id: T.Optional[str] = None,
+    ilvl: T.Optional[int] = None,
+    num_id: T.Optional[int] = None,
+    extend_hierarchy: bool = False,
+):
+    if tag_hierarchy is None:
+        tag_hierarchy = []
+    
     xml = ""
-    for child in children:
+    for element in children:
         # new lines are unnecessary since paragraphs are already
         # separated
-        if child == "\n":
+        if element == "\n":
             continue
 
+        tag_hierarchy_branch = list(tag_hierarchy)  # soft copy
+        if extend_hierarchy is True:
+            if isinstance(element, PageElement):
+                tag_hierarchy_branch.append(element.name)
+
         child_xml = get_element_open_xml(
-            child,
-            tag_hierarchy=[*tag_hierarchy],  # pass a copy for each branch
-            settings=settings,
+            element, settings,
+            tag_hierarchy=tag_hierarchy_branch,
             nest_id=nest_id,
             ilvl=ilvl,
             num_id=num_id,
@@ -69,16 +92,13 @@ def html_element_2_open_xml(
 
 def get_element_open_xml(
     element: T.Union[str, PageElement],
+    settings: ConverterSettings,
     *,
     tag_hierarchy: T.Optional[T.List[str]] = None,
-    settings: ConverterSettings,
     nest_id: T.Optional[str] = None,
     ilvl: T.Optional[int] = None,
     num_id: T.Optional[int] = None,
 ) -> str:
-    if tag_hierarchy is None:
-        tag_hierarchy = []
-
     # text level
     if isinstance(element, str):
         return get_open_xml_run(
@@ -106,8 +126,7 @@ def get_element_open_xml(
     if element.name in ["h1", "h2", "h3", "h4", "h5", "h6"]:
         return get_open_xml_paragraph(
             inner=html_element_2_open_xml(
-                element,
-                settings=settings,
+                element, settings,
                 tag_hierarchy=tag_hierarchy,
                 nest_id=nest_id,
             ),
@@ -120,8 +139,7 @@ def get_element_open_xml(
     if element.name == "p":
         return get_open_xml_paragraph(
             inner=html_element_2_open_xml(
-                element,
-                settings=settings,
+                element, settings,
                 tag_hierarchy=tag_hierarchy,
                 nest_id=nest_id,
             ),
@@ -132,11 +150,9 @@ def get_element_open_xml(
     # anchor
     if element.name == "a":
         return get_open_xml_hyperlink(
-            inner=html_element_2_open_xml(
-                element,
-                settings=settings,
-                tag_hierarchy=tag_hierarchy,
-                nest_id=nest_id,
+            inner=get_open_xml_run(
+                element.text,
+                style=settings.styles.get_style("a"),
             ),
             url_id=element.attrs.get('href', ''),
         )
@@ -144,10 +160,17 @@ def get_element_open_xml(
     # list element
     if element.name == 'li':
         list_type = tag_hierarchy[-1]
+        
+        list_children = element.find_all("ul") + element.find_all("ol")
+        other_children = [
+            child for child in element.children
+            if child not in list_children
+        ]
+
         return get_open_xml_list(
             inner=html_element_2_open_xml(
-                element,
-                settings=settings,
+                element, settings,
+                children_override=other_children,
                 tag_hierarchy=tag_hierarchy,
                 nest_id=nest_id,
                 ilvl=ilvl,
@@ -157,26 +180,31 @@ def get_element_open_xml(
             nest_id=nest_id,
             ilvl=ilvl,
             num_id=num_id,
+        ) + html_children_2_open_xml(  # ensure nested list are separate paragraphs
+            list_children, settings,
+            tag_hierarchy=tag_hierarchy,
+            nest_id=nest_id,
+            ilvl=ilvl,
+            num_id=num_id,
+            extend_hierarchy=True,
         )
 
     # numbered list / bullet list
     if element.name in ['ol', 'ul']:
         return html_element_2_open_xml(
-            element,
-            settings=settings,
+            element, settings,
             tag_hierarchy=tag_hierarchy,
             # children_override=element.find_all('li'),  # only want to show list items
             nest_id=nest_id,
             ilvl=ilvl + 1 if ilvl is not None else 0,
-            num_id=generate_num_id(1000,9999),
+            num_id=generate_num_id(1000,9999) if ilvl is None else num_id,
         )
 
     logger.warning(
         f"Unsupported element `{element.name}`, some formatting may be lost!"
     )
     return html_element_2_open_xml(
-        element,
-        settings=settings,
+        element, settings,
     )
 
 
@@ -210,7 +238,7 @@ def get_open_xml_run(
     inner = escape(inner)
 
     if style:
-        prop += u'<w:rStyle w:val="%s"/>' % style
+        prop += u'<w:rStyle w:val="%s"/>' % style.style_id
     if color:
         if color[0] == '#':
             color = color[1:]
@@ -259,7 +287,8 @@ def get_open_xml_hyperlink(
     inner: str,
     url_id: str,
 ) -> str:
-    return (u'<w:hyperlink r:id="%s" w:tgtFrame="_blank">%s</w:hyperlink>'
+    # TODO: validate the link?
+    return (u'<w:hyperlink w:id="%s" w:tgtFrame="_blank">%s</w:hyperlink>'
                 % (url_id, inner))
 
 
@@ -271,7 +300,7 @@ def get_open_xml_paragraph(
     prop: str = u'',
 ) -> str:
     if style:
-        prop += u'<w:pStyle w:val="%s"/>' % style
+        prop += u'<w:pStyle w:val="%s"/>' % style.style_id
 
     xml = u'<w:p'
     if nest_id is not None:
