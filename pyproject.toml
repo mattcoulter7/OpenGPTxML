@@ -1,0 +1,63 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "opengptxml"
+version = "0.0.0.1"
+authors = [
+  { name="Matthew Coulter [Lead Developer]", email="mattcoul7+opengptxml@gmail.com" },
+]
+description = "Noodle Factory SDK for Python"
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Development Status :: 1 - Planning",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Operating System :: Unix",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: Microsoft :: Windows",
+]
+dependencies = [
+  "typing-extensions==4.5.0",
+]
+
+[project.optional-dependencies]
+converter = [
+  "lxml==4.9.3",
+  "six==1.16.0",
+  "beautifulsoup4==4.12.2",
+  "markdown-it-py==2.2.0",
+]
+docx = [
+  "python-docx==0.8.11",
+]
+docx_template = [
+  "docxtpl==0.16.7",
+]
+
+pptx = [
+
+]
+pptx_template = [
+
+]
+
+[project.urls]
+"Homepage" = "https://github.com/mattcoulter7/OpenGPTxML"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["opengptxml*"]
+namespaces = true
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q"
+testpaths = [
+  "src/tests",
+]
+pythonpath = [
+  "src",
+]

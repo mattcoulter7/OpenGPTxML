@@ -1,0 +1,6 @@
+-r requirements.txt
+
+debugpy
+setuptools
+build
+pytest
